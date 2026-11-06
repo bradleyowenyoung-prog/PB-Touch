@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PB Touch controls
 // @namespace    https://github.com/bradleyowenyoung-prog/PB-Touch
-// @version      0.7.0
+// @version      0.8.0
 // @description  Bigger arena and custom touch controls (radial moves, dodge, team strip, editable layout) for PB Ranked in Safari.
 // @match        https://ranked.pokemonbattlegrounds.com/*
 // @run-at       document-start
@@ -628,12 +628,26 @@
     '#__pbt_ui .pbt-q .cd { position: absolute; left: 0; right: 0; bottom: 0; transition: height .12s linear; }',
     '#__pbt_ui .pbt-q .nm { position: absolute; width: calc(54px * var(--pbt-btn, 1)); font-size: calc(9px * var(--pbt-btn, 1)); line-height: calc(10px * var(--pbt-btn, 1)); text-shadow: 0 1px 2px #000;',
     '  white-space: normal; word-break: break-word; }',
-    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 3px #4dff6a, inset 0 0 12px rgba(77,255,106,.55); animation: pbtGlow 1s ease-in-out infinite alternate; }',
+    '#__pbt_ui .pbt-q::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2; }',
+    '#__pbt_ui .pbt-q.ready::before { box-shadow: inset 0 0 0 3px #4dff6a, inset 0 0 12px rgba(77,255,106,.6); }',
+    '#__pbt_ui .pbt-q.ready { animation: pbtGlow 1s ease-in-out infinite alternate; }',
+    '#__pbt_ui .pbt-q .nm, #__pbt_ui .pbt-q .info { z-index: 3; }',
     '#__pbt_ui .pbt-q.far .cd { filter: saturate(.4) brightness(.75); }',
-    '#__pbt_ui .pbt-q.far::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(0,0,0,.3) 0 4px, transparent 4px 9px); }',
+    '#__pbt_ui .pbt-q.far::after { content: ""; position: absolute; inset: 0; z-index: 1; background: repeating-linear-gradient(45deg, rgba(0,0,0,.3) 0 4px, transparent 4px 9px); }',
     '@keyframes pbtGlow { from { filter: brightness(1); } to { filter: brightness(1.25); } }',
     '#__pbt_ui .pbt-q.off { filter: grayscale(1) brightness(.6); animation: none; }',
-    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 4px #fff; filter: brightness(1.3); animation: none; }',
+    '#__pbt_ui .pbt-q.sel { filter: brightness(1.3); animation: none; }',
+    '#__pbt_ui .pbt-q.sel::before { box-shadow: inset 0 0 0 4px #fff; }',
+    '#__pbt_ui .pbt-q .info { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }',
+    '#__pbt_ui .pbt-q .eff, #__pbt_ui .pbt-q .uses { display: none; font-weight: 800; border-radius: 6px; background: rgba(0,0,0,.7);',
+    '  padding: 0 calc(4px * var(--pbt-btn, 1)); line-height: calc(14px * var(--pbt-btn, 1)); white-space: nowrap; }',
+    '#__pbt_ui .pbt-q .eff { font-size: calc(10px * var(--pbt-btn, 1)); border: 1px solid currentColor; }',
+    '#__pbt_ui .pbt-q .eff.super { display: block; color: #ffd33d; }',
+    '#__pbt_ui .pbt-q .eff.weak { display: block; color: #9fb4ff; }',
+    '#__pbt_ui .pbt-q .eff.none { display: block; color: #ff6b6b; }',
+    '#__pbt_ui .pbt-q .uses { font-size: calc(9px * var(--pbt-btn, 1)); color: #fff; }',
+    '#__pbt_ui .pbt-q .uses.on { display: block; }',
+    '#__pbt_ui .pbt-q .uses.low { color: #ffb347; }',
     '#__pbt_ui .pbt-dodge { background: rgba(24,24,30,.85); border: 2px solid rgba(255,255,255,.3); }',
     '#__pbt_ui .pbt-dodge.ready { background: rgba(38,170,70,.92); border-color: #4dff6a; box-shadow: 0 0 12px rgba(77,255,106,.6); }',
     '#__pbt_ui .pbt-pill { position: absolute; height: calc(30px * var(--pbt-btn, 1)); padding: 0 calc(12px * var(--pbt-btn, 1)); border-radius: calc(15px * var(--pbt-btn, 1)); display: flex;',
@@ -697,10 +711,10 @@
     wrap.className = 'pbt-hit';
     slot.appendChild(wrap);
     var place = [
-      ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right', 'left:30%;top:30%'],
-      ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left', 'right:30%;top:30%'],
-      ['left:0;bottom:0;border-bottom-left-radius:100%', 'right:5px;top:6px;text-align:right', 'left:30%;bottom:30%'],
-      ['right:0;bottom:0;border-bottom-right-radius:100%', 'left:5px;top:6px;text-align:left', 'right:30%;bottom:30%']
+      ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right', 'left:20%;top:20%'],
+      ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left', 'right:20%;top:20%'],
+      ['left:0;bottom:0;border-bottom-left-radius:100%', 'right:5px;top:6px;text-align:right', 'left:20%;bottom:20%'],
+      ['right:0;bottom:0;border-bottom-right-radius:100%', 'left:5px;top:6px;text-align:left', 'right:20%;bottom:20%']
     ];
     for (var i = 0; i < 4; i++) {
       var q = el('div', place[i][0]);
@@ -709,10 +723,20 @@
       cd.className = 'cd';
       var nm = el('div', place[i][1]);
       nm.className = 'nm';
+      // outer corner: effectiveness badge and uses left
+      var info = el('div', place[i][2]);
+      info.className = 'info';
+      var eff = el('div');
+      eff.className = 'eff';
+      var uses = el('div');
+      uses.className = 'uses';
+      info.appendChild(eff);
+      info.appendChild(uses);
       q.appendChild(cd);
       q.appendChild(nm);
+      q.appendChild(info);
       wrap.appendChild(q);
-      Q.push({ box: q, cd: cd, nm: nm, key: '' });
+      Q.push({ box: q, cd: cd, nm: nm, eff: eff, uses: uses, key: '' });
     }
     var hub = el('div', 'position:absolute;left:50%;top:50%;width:calc(34px * var(--pbt-btn, 1));height:calc(34px * var(--pbt-btn, 1));' +
       'transform:translate(-50%,-50%);border-radius:50%;' +
@@ -828,7 +852,7 @@
     var anyUsable = false;
     for (var i = 0; i < 4; i++) {
       var q = Q[i], b = btns[i];
-      var name = '', tc = '', cd = 0, off = true, ready = false, near = false;
+      var name = '', tc = '', cd = 0, off = true, ready = false, near = false, effKind = '', usesLeft = null;
       if (b) {
         var nm = b.querySelector('.nm');
         name = (nm ? nm.textContent : b.getAttribute('aria-label') || '').trim();
@@ -837,12 +861,21 @@
         cd = cdi ? pct(cdi.style.width) : 0;
         // PB also disables a move while it cools down; only "Used up" means it can't come back
         var meta = b.querySelector('.meta');
-        off = !!(meta && /used up/i.test(meta.textContent));
+        var mt = meta ? meta.textContent : '';
+        off = /used up/i.test(mt);
+        // effectiveness: PB sets data-eff ("super" / "weak" / …) and writes it in the move's subtitle
+        var de = (b.dataset.eff || '').toLowerCase();
+        if (/no effect|immune|doesn.t affect/i.test(mt) || de === 'none' || de === 'immune' || de === 'zero') effKind = 'none';
+        else if (de === 'super' || /super effective/i.test(mt)) effKind = 'super';
+        else if (de === 'weak' || /not very effective/i.test(mt)) effKind = 'weak';
+        // limited-use moves: "2 uses left · Status", "1 use left"
+        var um = mt.match(/(\d+)\s*uses?\s*left/i);
+        if (um) usesLeft = parseInt(um[1], 10);
         ready = b.classList.contains('ready') && !b.disabled;
         near = b.classList.contains('near');   // PB marks a move "near" while the target is within its reach
       }
       if (ready && near && !off) anyUsable = true;
-      var key = name + '|' + tc + '|' + Math.round(cd) + '|' + off + '|' + ready + '|' + near;
+      var key = name + '|' + tc + '|' + Math.round(cd) + '|' + off + '|' + ready + '|' + near + '|' + effKind + '|' + usesLeft;
       if (key === q.key) continue;
       q.key = key;
       q.nm.textContent = name;
@@ -852,6 +885,11 @@
       q.box.classList.toggle('ready', ready && !off);
       q.box.classList.toggle('inrange', near && !off);
       q.box.classList.toggle('far', !!b && !near && !off);
+      q.eff.className = 'eff ' + effKind;
+      q.eff.textContent = effKind === 'super' ? '2×' : effKind === 'weak' ? '½×' : effKind === 'none' ? '0×' : '';
+      var showUses = off || usesLeft !== null;
+      q.uses.className = 'uses' + (showUses ? ' on' : '') + (usesLeft === 1 ? ' low' : '');
+      q.uses.textContent = off ? 'swap to reset' : usesLeft !== null ? usesLeft + ' left' : '';
     }
     if (hubEl) hubEl.classList.toggle('any', anyUsable);
   }
