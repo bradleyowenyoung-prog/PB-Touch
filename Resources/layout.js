@@ -123,12 +123,14 @@
     '  height: calc(100vh * var(--pbt-scale, 1)) !important; width: calc(100vh * var(--pbt-scale, 1) * 16 / 9) !important;',
     '  max-width: none !important; max-height: none !important; margin: 0 !important; transform: translateX(-50%) !important; }',
     'html.pbt-battle.pbt-fill #stage > canvas#c { width: 100vw !important; height: calc(100vw * 9 / 16) !important;',
-    '  top: calc((100vh - 100vw * 9 / 16) / 2) !important; }',
+    '  top: 0 !important; }',
     'html.pbt-battle #controls { position: fixed !important; left: -10000px !important; top: 0 !important;',
     '  opacity: 0 !important; pointer-events: none !important; }',
     'html.pbt-battle #pad { display: block !important; visibility: visible !important; position: fixed !important;',
     '  left: calc(env(safe-area-inset-left, 0px) + 4px) !important; bottom: calc(env(safe-area-inset-bottom, 0px) + 2px) !important;',
-    '  top: auto !important; right: auto !important; width: calc(136px * var(--pbt-btn, 1)) !important; height: calc(136px * var(--pbt-btn, 1)) !important; margin: 0 !important;',
+    '  top: auto !important; right: auto !important; margin: 0 !important;',
+    '  width: calc(136px * var(--pbt-btn, 1) * var(--pbt-pad-s, 1)) !important; height: calc(136px * var(--pbt-btn, 1) * var(--pbt-pad-s, 1)) !important;',
+    '  transform: translate(var(--pbt-pad-x, 0px), var(--pbt-pad-y, 0px)) !important;',
     '  opacity: var(--pbt-op, .85) !important; z-index: 2147483000 !important; pointer-events: auto !important; touch-action: none !important; }',
     '#__pbt_ui { position: fixed; inset: 0; z-index: 2147483001; pointer-events: none; display: none;',
     '  font: 700 12px -apple-system, system-ui, sans-serif; color: #fff; -webkit-user-select: none; user-select: none;',
@@ -170,6 +172,26 @@
     r.style.setProperty('--pbt-btn', String(S.btn));
     r.style.setProperty('--pbt-op', String(S.opacity));
     if (S.ui) S.ui.style.opacity = String(S.opacity);
+    CTRL.forEach(applyPos);
+  }
+
+  // ---------- per-control position and size (Edit layout) ----------
+  var CTRL = ['radial', 'dodge', 'manual', 'mega', 'bench', 'pad'];
+  var NAMES = { radial: 'Move circle', dodge: 'Dodge', manual: 'Auto / Manual', mega: 'Mega', bench: 'Team', pad: 'Stick' };
+  var POS = lsGet('pos', {}) || {};
+  function posOf(id) {
+    var p = POS[id] || {};
+    return { x: +p.x || 0, y: +p.y || 0, s: +p.s || 1 };
+  }
+  function applyPos(id) {
+    var p = posOf(id), r = document.documentElement.style;
+    r.setProperty('--pbt-' + id + '-x', p.x + 'px');
+    r.setProperty('--pbt-' + id + '-y', p.y + 'px');
+    r.setProperty('--pbt-' + id + '-s', String(p.s));
+  }
+  function tf(id, origin) {
+    return 'transform:translate(var(--pbt-' + id + '-x,0px),var(--pbt-' + id + '-y,0px)) scale(var(--pbt-' + id + '-s,1));' +
+      'transform-origin:' + origin + ';';
   }
 
   // ---------- UI ----------
@@ -182,9 +204,12 @@
   var B = 'calc(env(safe-area-inset-bottom, 0px) + ';
 
   function buildRadial(root) {
-    var wrap = el('div', 'position:absolute;right:' + R + '12px);bottom:' + B + '8px);width:calc(128px * var(--pbt-btn, 1));height:calc(128px * var(--pbt-btn, 1));' +
-      'border-radius:50%;transform-origin:50% 50%;transition:transform .08s;');
+    var slot = el('div', 'position:absolute;right:' + R + '12px);bottom:' + B + '8px);width:calc(128px * var(--pbt-btn, 1));height:calc(128px * var(--pbt-btn, 1));' +
+      tf('radial', '100% 100%'));
+    slot.dataset.ctrl = 'radial';
+    var wrap = el('div', 'position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%;transition:transform .08s;');
     wrap.className = 'pbt-hit';
+    slot.appendChild(wrap);
     var place = [
       ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right', 'left:30%;top:30%'],
       ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left', 'right:30%;top:30%'],
@@ -212,7 +237,7 @@
     hub.className = 'pbt-hub';
     hubEl = hub;
     wrap.appendChild(hub);
-    root.appendChild(wrap);
+    root.appendChild(slot);
 
     var tid = null, cx = 0, cy = 0, sel = -1;
     function pick(t) {
@@ -233,7 +258,7 @@
       cx = r.left + r.width / 2;
       cy = r.top + r.height / 2;
       wrap.style.transform = 'scale(1.45)';
-      wrap.style.zIndex = '5';
+      slot.style.zIndex = '5';
       setSel(pick(t));
       haptic('selection');
     }, { passive: false });
@@ -249,7 +274,7 @@
       if (!t) return;
       tid = null;
       wrap.style.transform = '';
-      wrap.style.zIndex = '';
+      slot.style.zIndex = '';
       var s = sel;
       setSel(-1);
       if (fire && s >= 0) useMove(s);
@@ -283,20 +308,24 @@
     buildRadial(root);
 
     var d = tapButton(root, 'position:absolute;right:' + R + '6px);bottom:calc(env(safe-area-inset-bottom, 0px) + 20px + 128px * var(--pbt-btn, 1));' +
-      'width:calc(70px * var(--pbt-btn, 1));height:calc(70px * var(--pbt-btn, 1));border-radius:50%;' +
+      'width:calc(70px * var(--pbt-btn, 1));height:calc(70px * var(--pbt-btn, 1));border-radius:50%;' + tf('dodge', '50% 50%') +
       'background:rgba(50,40,30,.85);border:2px solid rgba(255,255,255,.45);overflow:hidden;display:flex;align-items:center;' +
       'justify-content:center;font-size:calc(13px * var(--pbt-btn, 1));letter-spacing:.5px;', '', dodge);
+    d.dataset.ctrl = 'dodge';
     dodgeFill = el('div', 'position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55);');
     d.appendChild(dodgeFill);
     d.appendChild(el('span', 'position:relative;', 'DODGE'));
 
-    manualPill = tapButton(root, 'top:8px;right:' + R + '6px);', 'AUTO', function () { toggleManual(false); }, 'pbt-pill');
+    manualPill = tapButton(root, 'top:8px;right:' + R + '6px);' + tf('manual', '100% 0'), 'AUTO', function () { toggleManual(false); }, 'pbt-pill');
+    manualPill.dataset.ctrl = 'manual';
     megaPill = tapButton(root, 'top:calc(16px + 30px * var(--pbt-btn, 1));right:' + R + '6px);display:none;' +
-      'background:linear-gradient(90deg,#b44cff,#ff5a5a,#ffd33d);color:#111;', 'MEGA', mega, 'pbt-pill');
+      'background:linear-gradient(90deg,#b44cff,#ff5a5a,#ffd33d);color:#111;' + tf('mega', '100% 0'), 'MEGA', mega, 'pbt-pill');
+    megaPill.dataset.ctrl = 'mega';
 
     benchEl = el('div', 'position:absolute;left:' + L + '6px);top:6px;display:flex;flex-direction:column;flex-wrap:wrap;' +
-      'max-height:calc(100vh - 160px);column-gap:4px;');
+      'max-height:calc(100vh - 160px);column-gap:4px;' + tf('bench', '0 0'));
     benchEl.className = 'pbt-bench';
+    benchEl.dataset.ctrl = 'bench';
     root.appendChild(benchEl);
 
     document.body.appendChild(root);
@@ -378,7 +407,7 @@
     manualPill.textContent = on ? 'MANUAL' : 'AUTO';
     manualPill.style.background = on ? 'rgba(255,211,61,.9)' : 'rgba(30,30,36,.8)';
     manualPill.style.color = on ? '#111' : '#fff';
-    megaPill.style.display = megaAvailable() ? 'flex' : 'none';
+    megaPill.style.display = (editing || megaAvailable()) ? 'flex' : 'none';
   }
 
   function inBattle() {
@@ -400,12 +429,158 @@
       S.active = battle;
       document.documentElement.classList.toggle('pbt-battle', battle);
       if (S.ui) S.ui.style.display = battle ? 'block' : 'none';
+      if (!battle) stopEdit();
       if (P.vpad && !testUIVisible()) P.vpad.setEnabled(battle && S.input === 'pad');
     }
     if (battle) update();
   }
 
+  // ---------- Edit layout: drag to move, pinch or − / + to resize ----------
+  var editing = null;
+  function ctrlEl(id) { return id === 'pad' ? $('pad') : (S.ui && S.ui.querySelector('[data-ctrl="' + id + '"]')); }
+  function setPos(id, patch) {
+    var p = posOf(id);
+    if (patch.x !== undefined) p.x = patch.x;
+    if (patch.y !== undefined) p.y = patch.y;
+    if (patch.s !== undefined) p.s = Math.max(0.5, Math.min(2.2, Math.round(patch.s * 100) / 100));
+    POS[id] = p;
+    applyPos(id);
+    // keep it on screen
+    var e = ctrlEl(id);
+    if (e) {
+      var r = e.getBoundingClientRect(), fix = false;
+      if (r.left < 0) { p.x -= r.left; fix = true; }
+      if (r.right > innerWidth) { p.x -= r.right - innerWidth; fix = true; }
+      if (r.top < 0) { p.y -= r.top; fix = true; }
+      if (r.bottom > innerHeight) { p.y -= r.bottom - innerHeight; fix = true; }
+      if (fix) applyPos(id);
+    }
+  }
+  function savePos() { lsSet('pos', POS); }
+
+  function startEdit() {
+    P.selfAdding = true;
+    var layer = el('div', 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.35);touch-action:none;' +
+      'font:700 13px -apple-system,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;');
+    var boxes = {};
+    CTRL.forEach(function (id) {
+      var b = el('div', 'position:fixed;border:2px dashed rgba(255,255,255,.8);border-radius:10px;pointer-events:none;');
+      var lab = el('span', 'position:absolute;left:4px;top:-18px;font-size:11px;white-space:nowrap;text-shadow:0 1px 2px #000;', NAMES[id]);
+      b.appendChild(lab);
+      layer.appendChild(b);
+      boxes[id] = b;
+    });
+    var bar = el('div', 'position:absolute;left:50%;top:6px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;' +
+      'padding:6px 8px;border-radius:12px;background:rgba(10,10,14,.92);border:1px solid rgba(255,255,255,.25);white-space:nowrap;');
+    var label = el('span', 'min-width:150px;text-align:center;', 'Tap a control');
+    bar.appendChild(label);
+    function mk(text, fn, wide) {
+      var b = el('div', 'height:32px;min-width:' + (wide ? 64 : 34) + 'px;padding:0 8px;border-radius:8px;background:rgba(255,255,255,.16);' +
+        'display:flex;align-items:center;justify-content:center;', text);
+      b.addEventListener('touchstart', function (e) { e.preventDefault(); e.stopPropagation(); fn(); haptic('light'); }, { passive: false });
+      bar.appendChild(b);
+      return b;
+    }
+    mk('−', function () { if (editing.sel) { setPos(editing.sel, { s: posOf(editing.sel).s - 0.1 }); savePos(); } });
+    mk('+', function () { if (editing.sel) { setPos(editing.sel, { s: posOf(editing.sel).s + 0.1 }); savePos(); } });
+    mk('Reset', function () { if (editing.sel) { delete POS[editing.sel]; applyPos(editing.sel); savePos(); } }, true);
+    mk('Reset all', function () { POS = {}; CTRL.forEach(applyPos); savePos(); }, true);
+    mk('Done', stopEdit, true);
+    layer.appendChild(bar);
+
+    editing = { layer: layer, boxes: boxes, label: label, sel: null, drag: null, pinch: null, raf: 0 };
+
+    function select(id) {
+      editing.sel = id;
+      CTRL.forEach(function (c) { boxes[c].style.border = c === id ? '3px solid #ffd33d' : '2px dashed rgba(255,255,255,.8)'; });
+    }
+    function hit(x, y) {
+      var order = ['mega', 'manual', 'dodge', 'radial', 'bench', 'pad'];
+      for (var i = 0; i < order.length; i++) {
+        var e = ctrlEl(order[i]);
+        if (!e) continue;
+        var r = e.getBoundingClientRect();
+        if (r.width && x >= r.left - 10 && x <= r.right + 10 && y >= r.top - 10 && y <= r.bottom + 10) return order[i];
+      }
+      return null;
+    }
+    function dist(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+
+    layer.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      if (e.touches.length >= 2 && editing.sel) {
+        editing.pinch = { d0: dist(e.touches[0], e.touches[1]) || 1, s0: posOf(editing.sel).s };
+        editing.drag = null;
+        return;
+      }
+      var t = e.changedTouches[0], id = hit(t.clientX, t.clientY);
+      if (!id) return;
+      select(id);
+      var p = posOf(id);
+      editing.drag = { id: id, tid: t.identifier, sx: t.clientX, sy: t.clientY, ox: p.x, oy: p.y };
+      haptic('selection');
+    }, { passive: false });
+    layer.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+      if (editing.pinch && e.touches.length >= 2) {
+        setPos(editing.sel, { s: editing.pinch.s0 * dist(e.touches[0], e.touches[1]) / editing.pinch.d0 });
+        return;
+      }
+      var d = editing.drag;
+      if (!d) return;
+      var t = findTouch(e, d.tid);
+      if (t) setPos(d.id, { x: d.ox + t.clientX - d.sx, y: d.oy + t.clientY - d.sy });
+    }, { passive: false });
+    function end(e) {
+      if (e.touches.length < 2) editing.pinch = null;
+      if (editing.drag && findTouch(e, editing.drag.tid)) editing.drag = null;
+      savePos();
+    }
+    layer.addEventListener('touchend', end);
+    layer.addEventListener('touchcancel', end);
+
+    (function frame() {
+      if (!editing) return;
+      CTRL.forEach(function (id) {
+        var e = ctrlEl(id), b = boxes[id];
+        var r = e ? e.getBoundingClientRect() : null;
+        if (!r || !r.width) { b.style.display = 'none'; return; }
+        b.style.display = 'block';
+        b.style.left = (r.left - 4) + 'px';
+        b.style.top = (r.top - 4) + 'px';
+        b.style.width = (r.width + 8) + 'px';
+        b.style.height = (r.height + 8) + 'px';
+      });
+      // keep the toolbar out of the way of the control being edited
+      var se = editing.sel && ctrlEl(editing.sel), sr = se && se.getBoundingClientRect();
+      var atBottom = !!(sr && sr.top < innerHeight * 0.4);
+      bar.style.top = atBottom ? 'auto' : '6px';
+      bar.style.bottom = atBottom ? 'calc(env(safe-area-inset-bottom, 0px) + 6px)' : 'auto';
+      label.textContent = editing.sel ? NAMES[editing.sel] + ' · ' + Math.round(posOf(editing.sel).s * 100) + '%' : 'Tap a control';
+      editing.raf = requestAnimationFrame(frame);
+    })();
+
+    document.body.appendChild(layer);
+    P.selfAdding = false;
+    update();
+  }
+
+  function stopEdit() {
+    if (!editing) return;
+    cancelAnimationFrame(editing.raf);
+    editing.layer.remove();
+    editing = null;
+    savePos();
+    if (S.active) update();
+  }
+
   // ---------- API for the ⚙︎ menu ----------
+  S.edit = function () {
+    if (editing) { stopEdit(); return 'Layout saved'; }
+    if (!S.active) return 'Start a battle first (practice is fine), then choose Edit layout';
+    startEdit();
+    return 'Drag a control to move it · pinch or − / + to resize · Done when finished';
+  };
   S.toggle = function () {
     S.enabled = !S.enabled;
     lsSet('layout', S.enabled);
@@ -440,7 +615,7 @@
     return S.input === 'pad' ? 'Moves sent as controller buttons' : "Moves sent as taps on PB's buttons";
   };
   S.status = function () {
-    return JSON.stringify({ enabled: S.enabled, active: S.active, scale: S.scale, opacity: S.opacity, input: S.input, btn: S.btn });
+    return JSON.stringify({ enabled: S.enabled, active: S.active, scale: S.scale, opacity: S.opacity, input: S.input, btn: S.btn, pos: POS });
   };
 
   setInterval(tick, 120);

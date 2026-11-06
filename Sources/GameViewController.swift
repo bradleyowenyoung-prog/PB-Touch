@@ -131,7 +131,10 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         menu.addAction(UIAlertAction(title: "Arena size: full screen → 100% → 92% → 84%", style: .default) { [weak self] _ in
             self?.runLayout("cycleScale")
         })
-        menu.addAction(UIAlertAction(title: "Button size: 100% → 115% → 130% → 85%", style: .default) { [weak self] _ in
+        menu.addAction(UIAlertAction(title: "Edit layout (move and resize each control)", style: .default) { [weak self] _ in
+            self?.runLayout("edit")
+        })
+        menu.addAction(UIAlertAction(title: "All buttons size: 100% → 115% → 130% → 85%", style: .default) { [weak self] _ in
             self?.runLayout("cycleSize")
         })
         menu.addAction(UIAlertAction(title: "Controls opacity: 85% → 60% → 100%", style: .default) { [weak self] _ in
