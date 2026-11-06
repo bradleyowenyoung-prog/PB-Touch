@@ -39,6 +39,12 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
             }
         }
 
+        // Boot PB in Light graphics ("low") before its own code reads the setting.
+        if Self.forceLight {
+            config.userContentController.addUserScript(WKUserScript(source: Self.lightScript,
+                                                                    injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
+
         // Lock zoom so drags and taps never turn into pinch/double-tap zooms; page scrolling still works.
         config.userContentController.addUserScript(WKUserScript(source: Self.viewportScript,
                                                                 injectionTime: .atDocumentEnd, forMainFrameOnly: true))
@@ -76,6 +82,18 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
 
         wv.load(URLRequest(url: Self.gameURL))
     }
+
+    /// On by default; the ⚙︎ menu can turn it off.
+    static var forceLight: Bool {
+        get { UserDefaults.standard.object(forKey: "forceLightGraphics") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "forceLightGraphics") }
+    }
+
+    private static let lightScript = """
+    (function () {
+      try { if (location.hostname.endsWith('pokemonbattlegrounds.com')) localStorage.setItem('pbr.quality', JSON.stringify('low')); } catch (e) {}
+    })();
+    """
 
     private static let viewportScript = """
     (function () {
@@ -142,6 +160,13 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         })
         menu.addAction(UIAlertAction(title: "Move input: controller / taps", style: .default) { [weak self] _ in
             self?.runLayout("toggleInput")
+        })
+        menu.addAction(UIAlertAction(title: Self.forceLight ? "Always start in Light graphics: ON (tap to turn off)"
+                                                            : "Always start in Light graphics: OFF (tap to turn on)",
+                                     style: .default) { [weak self] _ in
+            Self.forceLight.toggle()
+            self?.toast(Self.forceLight ? "Light graphics on every launch (applies next launch)"
+                                        : "Off: PB keeps whatever graphics you pick (applies next launch)")
         })
         menu.addAction(UIAlertAction(title: "Export diagnostics now", style: .default) { [weak self] _ in
             self?.exportDiagnostics()
