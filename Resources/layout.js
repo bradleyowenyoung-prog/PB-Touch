@@ -115,12 +115,12 @@
   var CSS = [
     'html.pbt-battle .stagebar, html.pbt-battle #rotateHint, html.pbt-battle #note { display: none !important; }',
     'html.pbt-battle, html.pbt-battle body { overflow: hidden !important; overscroll-behavior: none !important; }',
-    'html.pbt-battle #stage { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;',
+    'html.pbt-battle #stage { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important;',
     '  max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important;',
     '  border-radius: 0 !important; z-index: 1 !important; transform: none !important; }',
     'html.pbt-battle #stage > canvas#c { position: absolute !important; left: 50% !important;',
-    '  top: calc((100vh - 100vh * var(--pbt-scale, 1)) / 2) !important;',
-    '  height: calc(100vh * var(--pbt-scale, 1)) !important; width: calc(100vh * var(--pbt-scale, 1) * 16 / 9) !important;',
+    '  top: calc((100dvh - 100dvh * var(--pbt-scale, 1)) / 2) !important;',
+    '  height: calc(100dvh * var(--pbt-scale, 1)) !important; width: calc(100dvh * var(--pbt-scale, 1) * 16 / 9) !important;',
     '  max-width: none !important; max-height: none !important; margin: 0 !important; transform: translateX(-50%) !important; }',
     'html.pbt-battle.pbt-fill #stage > canvas#c { width: 100vw !important; height: calc(100vw * 9 / 16) !important;',
     '  top: 0 !important; }',
@@ -323,7 +323,7 @@
     megaPill.dataset.ctrl = 'mega';
 
     benchEl = el('div', 'position:absolute;left:' + L + '6px);top:6px;display:flex;flex-direction:column;flex-wrap:wrap;' +
-      'max-height:calc(100vh - 160px);column-gap:4px;' + tf('bench', '0 0'));
+      'max-height:calc(100dvh - 160px);column-gap:4px;' + tf('bench', '0 0'));
     benchEl.className = 'pbt-bench';
     benchEl.dataset.ctrl = 'bench';
     root.appendChild(benchEl);
@@ -424,6 +424,12 @@
   function tick() {
     if (!document.body) return;
     if (!S.ui) build();
+    buildWebMenu();
+    if (webGear) {
+      var onBattleScreen = document.body.dataset.screen === 'battle';
+      webGear.style.display = onBattleScreen ? 'flex' : 'none';
+      if (!onBattleScreen) webPanel.style.display = 'none';
+    }
     var battle = inBattle();
     if (battle !== S.active) {
       S.active = battle;
@@ -572,6 +578,51 @@
     editing = null;
     savePos();
     if (S.active) update();
+  }
+
+  // ---------- in-page ⚙︎ menu (Safari userscript only; the app has its own native menu) ----------
+  function inApp() {
+    try { return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pbtHaptic); } catch (e) { return false; }
+  }
+  var webGear = null, webPanel = null, webToast = null;
+  function toastWeb(text) {
+    if (!webToast) return;
+    webToast.textContent = text;
+    webToast.style.opacity = '1';
+    clearTimeout(webToast._t);
+    webToast._t = setTimeout(function () { webToast.style.opacity = '0'; }, 2200);
+  }
+  function buildWebMenu() {
+    if (webGear || inApp() || !document.body) return;
+    P.selfAdding = true;
+    var font = 'font:700 13px -apple-system,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;';
+    webGear = el('div', 'position:fixed;left:50%;top:6px;transform:translateX(-50%);width:34px;height:34px;border-radius:17px;' +
+      'background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:2147483645;font-size:18px;' +
+      'touch-action:none;' + font, '⚙︎');
+    webPanel = el('div', 'position:fixed;left:50%;top:46px;transform:translateX(-50%);display:none;flex-direction:column;gap:4px;' +
+      'padding:8px;border-radius:12px;background:rgba(10,10,14,.94);border:1px solid rgba(255,255,255,.25);z-index:2147483645;' +
+      'max-height:calc(100dvh - 60px);overflow:auto;' + font);
+    webToast = el('div', 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:8px 14px;border-radius:10px;' +
+      'background:rgba(0,0,0,.8);opacity:0;transition:opacity .3s;pointer-events:none;z-index:2147483647;white-space:nowrap;' + font);
+    [['Custom controls: on / off', 'toggle'], ['Edit layout (move and resize)', 'edit'],
+      ['Arena size: full → 100% → 92% → 84%', 'cycleScale'], ['All buttons size', 'cycleSize'],
+      ['Controls opacity', 'cycleOpacity'], ['Move input: controller / taps', 'toggleInput']].forEach(function (item) {
+      var b = el('div', 'padding:9px 12px;border-radius:8px;background:rgba(255,255,255,.12);white-space:nowrap;', item[0]);
+      b.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        webPanel.style.display = 'none';
+        toastWeb(S[item[1]]());
+      }, { passive: false });
+      webPanel.appendChild(b);
+    });
+    webGear.addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      webPanel.style.display = webPanel.style.display === 'none' ? 'flex' : 'none';
+    }, { passive: false });
+    document.body.appendChild(webGear);
+    document.body.appendChild(webPanel);
+    document.body.appendChild(webToast);
+    P.selfAdding = false;
   }
 
   // ---------- API for the ⚙︎ menu ----------

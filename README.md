@@ -27,6 +27,20 @@ In a battle the arena fills the screen height and PB's own buttons are moved off
 - ⚙︎ menu: controls on/off, arena size (full screen, top-aligned / 100% / 92% / 84%), **Edit layout** (drag any control to move it,
   pinch or − / + to resize it, per control), all-buttons size, controls opacity, move input (controller buttons or taps).
 
+## No sideloading? Use it in Safari
+
+The same controls run in Safari as a userscript (no app or signing needed; Safari keeps its own bars,
+so it isn't true full screen, and there are no haptics).
+
+1. Install **Userscripts** (free, by Justin Wasack) from the App Store.
+2. Settings → Apps → Safari → Extensions → Userscripts: turn it on and allow it on
+   `ranked.pokemonbattlegrounds.com` (or All Websites).
+3. In Safari open
+   <https://raw.githubusercontent.com/bradleyowenyoung-prog/PB-Touch/main/dist/pb-touch.user.js>,
+   tap the **aA** / extension button → Userscripts → **Install**.
+4. Open <https://ranked.pokemonbattlegrounds.com/>, turn the phone sideways, and start a battle.
+   The ⚙︎ at the top centre of the battle screen has the same options as the app (Edit layout, arena size, …).
+
 ## Building
 
 Every push to `main` builds an unsigned `PBTouch.ipa` on a GitHub macOS runner and publishes it

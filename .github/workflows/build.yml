@@ -20,6 +20,9 @@ jobs:
       - name: Build unsigned IPA
         run: bash scripts/build.sh
 
+      - name: Build Safari userscript
+        run: bash scripts/make-userscript.sh
+
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
@@ -32,7 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest build/PBTouch.ipa \
+          gh release create latest build/PBTouch.ipa dist/pb-touch.user.js \
             --title "PB Touch — latest build (#${{ github.run_number }})" \
-            --notes "Built from ${{ github.sha }}. Unsigned: sign and install it with your usual sideloading tool." \
+            --notes "Built from ${{ github.sha }}. PBTouch.ipa is unsigned: sign and install it with your usual sideloading tool. No sideloading? Use pb-touch.user.js in Safari with the free Userscripts extension (see README)." \
             --prerelease
