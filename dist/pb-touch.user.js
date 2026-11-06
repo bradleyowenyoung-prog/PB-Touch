@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PB Touch controls
 // @namespace    https://github.com/bradleyowenyoung-prog/PB-Touch
-// @version      0.6.0
+// @version      0.7.0
 // @description  Bigger arena and custom touch controls (radial moves, dodge, team strip, editable layout) for PB Ranked in Safari.
 // @match        https://ranked.pokemonbattlegrounds.com/*
 // @run-at       document-start

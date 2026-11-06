@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="25%" r="90%">
+      <stop offset="0" stop-color="#3a2f6b"/>
+      <stop offset="0.55" stop-color="#1b1838"/>
+      <stop offset="1" stop-color="#0c0b18"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="disc"><circle cx="512" cy="540" r="330"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- four move quarters -->
+  <g clip-path="url(#disc)">
+    <rect x="172" y="200" width="332" height="332" fill="#232030"/>
+    <rect x="520" y="200" width="332" height="332" fill="#232030"/>
+    <rect x="172" y="548" width="332" height="332" fill="#232030"/>
+    <rect x="520" y="548" width="332" height="332" fill="#232030"/>
+    <!-- cooldown fills rising -->
+    <rect x="172" y="200" width="332" height="332" fill="#9a86e8"/>
+    <rect x="520" y="300" width="332" height="232" fill="#f85888"/>
+    <rect x="172" y="700" width="332" height="180" fill="#6890f0"/>
+    <rect x="520" y="548" width="332" height="332" fill="#78c850"/>
+  </g>
+  <!-- green ready rings on the full quarters -->
+  <path d="M504 532 L504 222 A318 318 0 0 0 194 532 Z" fill="none" stroke="#4dff6a" stroke-width="16" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M520 548 L830 548 A318 318 0 0 1 520 858 Z" fill="none" stroke="#4dff6a" stroke-width="16" stroke-linejoin="round" filter="url(#glow)"/>
+  <!-- gaps -->
+  <rect x="504" y="200" width="16" height="680" fill="#0c0b18"/>
+  <rect x="172" y="532" width="680" height="16" fill="#0c0b18"/>
+  <!-- hub -->
+  <circle cx="512" cy="540" r="86" fill="#14121f" stroke="#4dff6a" stroke-width="14" filter="url(#glow)"/>
+  <circle cx="512" cy="540" r="30" fill="#4dff6a"/>
+  <!-- touch ripple -->
+  <circle cx="700" cy="380" r="54" fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width="10"/>
+  <circle cx="700" cy="380" r="22" fill="#ffffff" fill-opacity=".9"/>
+</svg>

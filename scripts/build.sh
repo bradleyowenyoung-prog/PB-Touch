@@ -28,6 +28,25 @@ cp "$ROOT"/Resources/*.js "$BUNDLE/"
 cp "$ROOT/Info.plist" "$BUNDLE/Info.plist"
 
 PL="$BUNDLE/Info.plist"
+
+# App icon: compile the asset catalog (makes Assets.car + the PNG sizes iOS needs)
+# and merge the icon keys actool reports into Info.plist.
+xcrun actool "$ROOT/Assets.xcassets" \
+  --compile "$BUNDLE" \
+  --platform iphoneos \
+  --minimum-deployment-target 16.0 \
+  --target-device iphone --target-device ipad \
+  --app-icon AppIcon \
+  --output-format human-readable-text \
+  --output-partial-info-plist "$OUT/partial.plist"
+/usr/bin/python3 - "$PL" "$OUT/partial.plist" <<'PY'
+import plistlib, sys
+main, part = sys.argv[1], sys.argv[2]
+with open(main, 'rb') as f: d = plistlib.load(f)
+with open(part, 'rb') as f: d.update(plistlib.load(f))
+with open(main, 'wb') as f: plistlib.dump(d, f)
+print('icon keys:', [k for k in d if 'Icon' in k])
+PY
 plutil -replace CFBundleVersion -string "${GITHUB_RUN_NUMBER:-1}" "$PL"
 plutil -replace DTSDKName -string "iphoneos$SDK_VER" "$PL"
 plutil -replace DTPlatformVersion -string "$SDK_VER" "$PL"
