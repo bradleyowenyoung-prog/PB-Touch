@@ -137,19 +137,18 @@
     '  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }',
     '#__pbt_ui .pbt-hit { pointer-events: auto; touch-action: none; }',
     '#__pbt_ui .pbt-q { position: absolute; width: calc(50% - 2px); height: calc(50% - 2px); overflow: hidden;',
-    '  background: rgba(40,40,48,.8); transition: box-shadow .05s, filter .05s; }',
-    '#__pbt_ui .pbt-q .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); }',
+    '  background: rgba(24,24,30,.85); transition: box-shadow .1s, filter .05s; }',
+    '#__pbt_ui .pbt-q .cd { position: absolute; left: 0; right: 0; bottom: 0; transition: height .12s linear; }',
     '#__pbt_ui .pbt-q .nm { position: absolute; width: calc(54px * var(--pbt-btn, 1)); font-size: calc(9px * var(--pbt-btn, 1)); line-height: calc(10px * var(--pbt-btn, 1)); text-shadow: 0 1px 2px #000;',
     '  white-space: normal; word-break: break-word; }',
-    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }',
-    '#__pbt_ui .pbt-q.ready.inrange { box-shadow: inset 0 0 0 3px #fff, inset 0 0 14px rgba(255,255,255,.75); animation: pbtGlow 1s ease-in-out infinite alternate; }',
-    '#__pbt_ui .pbt-q.far { filter: saturate(.4) brightness(.8); }',
-    '#__pbt_ui .pbt-q.far::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(0,0,0,.28) 0 4px, transparent 4px 9px); }',
-    '#__pbt_ui .pbt-q .dot { position: absolute; width: calc(9px * var(--pbt-btn, 1)); height: calc(9px * var(--pbt-btn, 1)); border-radius: 50%; background: #5f5; box-shadow: 0 0 6px #5f5; display: none; }',
-    '#__pbt_ui .pbt-q.ready.inrange .dot { display: block; }',
+    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 3px #4dff6a, inset 0 0 12px rgba(77,255,106,.55); animation: pbtGlow 1s ease-in-out infinite alternate; }',
+    '#__pbt_ui .pbt-q.far .cd { filter: saturate(.4) brightness(.75); }',
+    '#__pbt_ui .pbt-q.far::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(0,0,0,.3) 0 4px, transparent 4px 9px); }',
     '@keyframes pbtGlow { from { filter: brightness(1); } to { filter: brightness(1.25); } }',
     '#__pbt_ui .pbt-q.off { filter: grayscale(1) brightness(.6); animation: none; }',
-    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 4px #fff; filter: brightness(1.4); animation: none; }',
+    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 4px #fff; filter: brightness(1.3); animation: none; }',
+    '#__pbt_ui .pbt-dodge { background: rgba(24,24,30,.85); border: 2px solid rgba(255,255,255,.3); }',
+    '#__pbt_ui .pbt-dodge.ready { background: rgba(38,170,70,.92); border-color: #4dff6a; box-shadow: 0 0 12px rgba(77,255,106,.6); }',
     '#__pbt_ui .pbt-pill { position: absolute; height: calc(30px * var(--pbt-btn, 1)); padding: 0 calc(12px * var(--pbt-btn, 1)); border-radius: calc(15px * var(--pbt-btn, 1)); display: flex;',
     '  font-size: calc(12px * var(--pbt-btn, 1)); min-width: calc(74px * var(--pbt-btn, 1));',
     '  align-items: center; justify-content: center; letter-spacing: .5px; background: rgba(30,30,36,.8);',
@@ -198,7 +197,7 @@
   var Q = [];          // radial quadrants
   var hubEl = null;
   var benchEl = null, benchKey = '';
-  var dodgeFill = null, manualPill = null, megaPill = null;
+  var dodgeFill = null, dodgeBtnEl = null, manualPill = null, megaPill = null;
   var L = 'calc(env(safe-area-inset-left, 0px) + ';
   var R = 'calc(env(safe-area-inset-right, 0px) + ';
   var B = 'calc(env(safe-area-inset-bottom, 0px) + ';
@@ -223,11 +222,8 @@
       cd.className = 'cd';
       var nm = el('div', place[i][1]);
       nm.className = 'nm';
-      var dot = el('div', place[i][2]);
-      dot.className = 'dot';
       q.appendChild(cd);
       q.appendChild(nm);
-      q.appendChild(dot);
       wrap.appendChild(q);
       Q.push({ box: q, cd: cd, nm: nm, key: '' });
     }
@@ -309,10 +305,11 @@
 
     var d = tapButton(root, 'position:absolute;right:' + R + '6px);bottom:calc(env(safe-area-inset-bottom, 0px) + 20px + 128px * var(--pbt-btn, 1));' +
       'width:calc(70px * var(--pbt-btn, 1));height:calc(70px * var(--pbt-btn, 1));border-radius:50%;' + tf('dodge', '50% 50%') +
-      'background:rgba(50,40,30,.85);border:2px solid rgba(255,255,255,.45);overflow:hidden;display:flex;align-items:center;' +
-      'justify-content:center;font-size:calc(13px * var(--pbt-btn, 1));letter-spacing:.5px;', '', dodge);
+      'overflow:hidden;display:flex;align-items:center;' +
+      'justify-content:center;font-size:calc(13px * var(--pbt-btn, 1));letter-spacing:.5px;', '', dodge, 'pbt-dodge');
     d.dataset.ctrl = 'dodge';
-    dodgeFill = el('div', 'position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55);');
+    dodgeBtnEl = d;
+    dodgeFill = el('div', 'position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(255,255,255,.28);transition:height .12s linear;');
     d.appendChild(dodgeFill);
     d.appendChild(el('span', 'position:relative;', 'DODGE'));
 
@@ -351,8 +348,10 @@
         tc = b.style.getPropertyValue('--tc').trim();
         var cdi = b.querySelector('i.cd');
         cd = cdi ? pct(cdi.style.width) : 0;
-        off = b.disabled;
-        ready = b.classList.contains('ready');
+        // PB also disables a move while it cools down; only "Used up" means it can't come back
+        var meta = b.querySelector('.meta');
+        off = !!(meta && /used up/i.test(meta.textContent));
+        ready = b.classList.contains('ready') && !b.disabled;
         near = b.classList.contains('near');   // PB marks a move "near" while the target is within its reach
       }
       if (ready && near && !off) anyUsable = true;
@@ -360,8 +359,8 @@
       if (key === q.key) continue;
       q.key = key;
       q.nm.textContent = name;
-      q.box.style.background = tc ? tc : 'rgba(40,40,48,.8)';
-      q.cd.style.height = cd + '%';
+      q.cd.style.background = tc || 'rgba(200,200,210,.7)';
+      q.cd.style.height = (b && !off ? (ready ? 100 : 100 - cd) : 0) + '%';   // fills up as the cooldown runs
       q.box.classList.toggle('off', !b || off);
       q.box.classList.toggle('ready', ready && !off);
       q.box.classList.toggle('inrange', near && !off);
@@ -402,7 +401,12 @@
     updateRadial();
     updateBench();
     var db = $('dodgeBtn');
-    if (db && dodgeFill) dodgeFill.style.height = pct(db.style.getPropertyValue('--cd')) + '%';
+    if (db && dodgeFill) {
+      var dcd = pct(db.style.getPropertyValue('--cd'));     // remaining cooldown, 0 = ready
+      var dReady = dcd <= 0 && !db.disabled;
+      dodgeFill.style.height = dReady ? '0%' : (100 - dcd) + '%';
+      dodgeBtnEl.classList.toggle('ready', dReady);
+    }
     var on = manualOn();
     manualPill.textContent = on ? 'MANUAL' : 'AUTO';
     manualPill.style.background = on ? 'rgba(255,211,61,.9)' : 'rgba(30,30,36,.8)';
