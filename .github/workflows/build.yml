@@ -1,0 +1,38 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Build unsigned IPA
+        run: bash scripts/build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: PBTouch-ipa
+          path: build/PBTouch.ipa
+
+      - name: Publish "latest" release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest build/PBTouch.ipa \
+            --title "PB Touch — latest build (#${{ github.run_number }})" \
+            --notes "Built from ${{ github.sha }}. Unsigned: sign and install it with your usual sideloading tool." \
+            --prerelease
