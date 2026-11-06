@@ -20,13 +20,15 @@
   }
   function lsSet(k, v) { try { localStorage.setItem('pbt.' + k, JSON.stringify(v)); } catch (e) {} }
 
-  var SCALES = [1, 0.92, 0.84];
+  var SCALES = ['fill', 1, 0.92, 0.84];   // 'fill' = full screen width, crops a little top and bottom
   var OPACITIES = [0.85, 0.6, 1];
+  var SIZES = [1, 1.15, 1.3, 0.85];
   var S = P.layout = {
     enabled: lsGet('layout', true),
     scale: lsGet('scale', 1),
     opacity: lsGet('opacity', 0.85),
     input: lsGet('input', 'pad'),
+    btn: lsGet('btn', 1),
     active: false,
     ui: null
   };
@@ -120,11 +122,13 @@
     '  top: calc((100vh - 100vh * var(--pbt-scale, 1)) / 2) !important;',
     '  height: calc(100vh * var(--pbt-scale, 1)) !important; width: calc(100vh * var(--pbt-scale, 1) * 16 / 9) !important;',
     '  max-width: none !important; max-height: none !important; margin: 0 !important; transform: translateX(-50%) !important; }',
+    'html.pbt-battle.pbt-fill #stage > canvas#c { width: 100vw !important; height: calc(100vw * 9 / 16) !important;',
+    '  top: calc((100vh - 100vw * 9 / 16) / 2) !important; }',
     'html.pbt-battle #controls { position: fixed !important; left: -10000px !important; top: 0 !important;',
     '  opacity: 0 !important; pointer-events: none !important; }',
     'html.pbt-battle #pad { display: block !important; visibility: visible !important; position: fixed !important;',
     '  left: calc(env(safe-area-inset-left, 0px) + 4px) !important; bottom: calc(env(safe-area-inset-bottom, 0px) + 2px) !important;',
-    '  top: auto !important; right: auto !important; width: 136px !important; height: 136px !important; margin: 0 !important;',
+    '  top: auto !important; right: auto !important; width: calc(136px * var(--pbt-btn, 1)) !important; height: calc(136px * var(--pbt-btn, 1)) !important; margin: 0 !important;',
     '  opacity: var(--pbt-op, .85) !important; z-index: 2147483000 !important; pointer-events: auto !important; touch-action: none !important; }',
     '#__pbt_ui { position: fixed; inset: 0; z-index: 2147483001; pointer-events: none; display: none;',
     '  font: 700 12px -apple-system, system-ui, sans-serif; color: #fff; -webkit-user-select: none; user-select: none;',
@@ -133,17 +137,25 @@
     '#__pbt_ui .pbt-q { position: absolute; width: calc(50% - 2px); height: calc(50% - 2px); overflow: hidden;',
     '  background: rgba(40,40,48,.8); transition: box-shadow .05s, filter .05s; }',
     '#__pbt_ui .pbt-q .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); }',
-    '#__pbt_ui .pbt-q .nm { position: absolute; width: 54px; font-size: 9px; line-height: 10px; text-shadow: 0 1px 2px #000;',
+    '#__pbt_ui .pbt-q .nm { position: absolute; width: calc(54px * var(--pbt-btn, 1)); font-size: calc(9px * var(--pbt-btn, 1)); line-height: calc(10px * var(--pbt-btn, 1)); text-shadow: 0 1px 2px #000;',
     '  white-space: normal; word-break: break-word; }',
-    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 2px rgba(255,255,255,.55); }',
-    '#__pbt_ui .pbt-q.off { filter: grayscale(1) brightness(.6); }',
-    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 3px #fff; filter: brightness(1.35); }',
-    '#__pbt_ui .pbt-pill { position: absolute; height: 30px; padding: 0 12px; border-radius: 15px; display: flex;',
+    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }',
+    '#__pbt_ui .pbt-q.ready.inrange { box-shadow: inset 0 0 0 3px #fff, inset 0 0 14px rgba(255,255,255,.75); animation: pbtGlow 1s ease-in-out infinite alternate; }',
+    '#__pbt_ui .pbt-q.far { filter: saturate(.4) brightness(.8); }',
+    '#__pbt_ui .pbt-q.far::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(0,0,0,.28) 0 4px, transparent 4px 9px); }',
+    '#__pbt_ui .pbt-q .dot { position: absolute; width: calc(9px * var(--pbt-btn, 1)); height: calc(9px * var(--pbt-btn, 1)); border-radius: 50%; background: #5f5; box-shadow: 0 0 6px #5f5; display: none; }',
+    '#__pbt_ui .pbt-q.ready.inrange .dot { display: block; }',
+    '@keyframes pbtGlow { from { filter: brightness(1); } to { filter: brightness(1.25); } }',
+    '#__pbt_ui .pbt-q.off { filter: grayscale(1) brightness(.6); animation: none; }',
+    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 4px #fff; filter: brightness(1.4); animation: none; }',
+    '#__pbt_ui .pbt-pill { position: absolute; height: calc(30px * var(--pbt-btn, 1)); padding: 0 calc(12px * var(--pbt-btn, 1)); border-radius: calc(15px * var(--pbt-btn, 1)); display: flex;',
+    '  font-size: calc(12px * var(--pbt-btn, 1)); min-width: calc(74px * var(--pbt-btn, 1));',
     '  align-items: center; justify-content: center; letter-spacing: .5px; background: rgba(30,30,36,.8);',
     '  border: 2px solid rgba(255,255,255,.35); }',
-    '#__pbt_ui .pbt-mon { position: relative; width: 42px; height: 42px; margin: 0 0 4px; border-radius: 9px;',
+    '#__pbt_ui .pbt-mon { position: relative; width: calc(42px * var(--pbt-btn, 1)); height: calc(42px * var(--pbt-btn, 1)); margin: 0 0 4px; border-radius: 9px;',
     '  background: rgba(30,30,36,.8); border: 2px solid rgba(255,255,255,.25); overflow: hidden; }',
-    '#__pbt_ui .pbt-mon img { position: absolute; left: 3px; top: 1px; width: 32px; height: 32px; image-rendering: pixelated; }',
+    '#__pbt_ui .pbt-mon img { position: absolute; left: 3px; top: 1px; width: calc(32px * var(--pbt-btn, 1)); height: calc(32px * var(--pbt-btn, 1)); image-rendering: pixelated; }',
+    '#__pbt_ui .pbt-hub.any { border-color: #5f5 !important; box-shadow: 0 0 8px #5f5; }',
     '#__pbt_ui .pbt-mon .hp { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 4px; background: rgba(0,0,0,.6); border-radius: 2px; }',
     '#__pbt_ui .pbt-mon .hp i { display: block; height: 100%; border-radius: 2px; }',
     '#__pbt_ui .pbt-mon.out { border-color: #ffd33d; }',
@@ -153,13 +165,16 @@
 
   function applyVars() {
     var r = document.documentElement;
-    r.style.setProperty('--pbt-scale', String(S.scale));
+    r.style.setProperty('--pbt-scale', String(S.scale === 'fill' ? 1 : S.scale));
+    r.classList.toggle('pbt-fill', S.scale === 'fill');
+    r.style.setProperty('--pbt-btn', String(S.btn));
     r.style.setProperty('--pbt-op', String(S.opacity));
     if (S.ui) S.ui.style.opacity = String(S.opacity);
   }
 
   // ---------- UI ----------
   var Q = [];          // radial quadrants
+  var hubEl = null;
   var benchEl = null, benchKey = '';
   var dodgeFill = null, manualPill = null, megaPill = null;
   var L = 'calc(env(safe-area-inset-left, 0px) + ';
@@ -167,14 +182,14 @@
   var B = 'calc(env(safe-area-inset-bottom, 0px) + ';
 
   function buildRadial(root) {
-    var wrap = el('div', 'position:absolute;right:' + R + '12px);bottom:' + B + '8px);width:128px;height:128px;' +
+    var wrap = el('div', 'position:absolute;right:' + R + '12px);bottom:' + B + '8px);width:calc(128px * var(--pbt-btn, 1));height:calc(128px * var(--pbt-btn, 1));' +
       'border-radius:50%;transform-origin:50% 50%;transition:transform .08s;');
     wrap.className = 'pbt-hit';
     var place = [
-      ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right'],
-      ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left'],
-      ['left:0;bottom:0;border-bottom-left-radius:100%', 'right:5px;top:6px;text-align:right'],
-      ['right:0;bottom:0;border-bottom-right-radius:100%', 'left:5px;top:6px;text-align:left']
+      ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right', 'left:30%;top:30%'],
+      ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left', 'right:30%;top:30%'],
+      ['left:0;bottom:0;border-bottom-left-radius:100%', 'right:5px;top:6px;text-align:right', 'left:30%;bottom:30%'],
+      ['right:0;bottom:0;border-bottom-right-radius:100%', 'left:5px;top:6px;text-align:left', 'right:30%;bottom:30%']
     ];
     for (var i = 0; i < 4; i++) {
       var q = el('div', place[i][0]);
@@ -183,13 +198,19 @@
       cd.className = 'cd';
       var nm = el('div', place[i][1]);
       nm.className = 'nm';
+      var dot = el('div', place[i][2]);
+      dot.className = 'dot';
       q.appendChild(cd);
       q.appendChild(nm);
+      q.appendChild(dot);
       wrap.appendChild(q);
       Q.push({ box: q, cd: cd, nm: nm, key: '' });
     }
-    var hub = el('div', 'position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;' +
+    var hub = el('div', 'position:absolute;left:50%;top:50%;width:calc(34px * var(--pbt-btn, 1));height:calc(34px * var(--pbt-btn, 1));' +
+      'transform:translate(-50%,-50%);border-radius:50%;' +
       'background:rgba(20,20,24,.9);border:2px solid rgba(255,255,255,.4);');
+    hub.className = 'pbt-hub';
+    hubEl = hub;
     wrap.appendChild(hub);
     root.appendChild(wrap);
 
@@ -261,15 +282,16 @@
 
     buildRadial(root);
 
-    var d = tapButton(root, 'position:absolute;right:' + R + '6px);bottom:' + B + '148px);width:70px;height:70px;border-radius:50%;' +
+    var d = tapButton(root, 'position:absolute;right:' + R + '6px);bottom:calc(env(safe-area-inset-bottom, 0px) + 20px + 128px * var(--pbt-btn, 1));' +
+      'width:calc(70px * var(--pbt-btn, 1));height:calc(70px * var(--pbt-btn, 1));border-radius:50%;' +
       'background:rgba(50,40,30,.85);border:2px solid rgba(255,255,255,.45);overflow:hidden;display:flex;align-items:center;' +
-      'justify-content:center;font-size:13px;letter-spacing:.5px;', '', dodge);
+      'justify-content:center;font-size:calc(13px * var(--pbt-btn, 1));letter-spacing:.5px;', '', dodge);
     dodgeFill = el('div', 'position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55);');
     d.appendChild(dodgeFill);
     d.appendChild(el('span', 'position:relative;', 'DODGE'));
 
-    manualPill = tapButton(root, 'top:8px;right:' + R + '6px);min-width:74px;', 'AUTO', function () { toggleManual(false); }, 'pbt-pill');
-    megaPill = tapButton(root, 'top:46px;right:' + R + '6px);min-width:74px;display:none;' +
+    manualPill = tapButton(root, 'top:8px;right:' + R + '6px);', 'AUTO', function () { toggleManual(false); }, 'pbt-pill');
+    megaPill = tapButton(root, 'top:calc(16px + 30px * var(--pbt-btn, 1));right:' + R + '6px);display:none;' +
       'background:linear-gradient(90deg,#b44cff,#ff5a5a,#ffd33d);color:#111;', 'MEGA', mega, 'pbt-pill');
 
     benchEl = el('div', 'position:absolute;left:' + L + '6px);top:6px;display:flex;flex-direction:column;flex-wrap:wrap;' +
@@ -290,9 +312,10 @@
 
   function updateRadial() {
     var btns = moveButtons();
+    var anyUsable = false;
     for (var i = 0; i < 4; i++) {
       var q = Q[i], b = btns[i];
-      var name = '', tc = '', cd = 0, off = true, ready = false;
+      var name = '', tc = '', cd = 0, off = true, ready = false, near = false;
       if (b) {
         var nm = b.querySelector('.nm');
         name = (nm ? nm.textContent : b.getAttribute('aria-label') || '').trim();
@@ -301,8 +324,10 @@
         cd = cdi ? pct(cdi.style.width) : 0;
         off = b.disabled;
         ready = b.classList.contains('ready');
+        near = b.classList.contains('near');   // PB marks a move "near" while the target is within its reach
       }
-      var key = name + '|' + tc + '|' + Math.round(cd) + '|' + off + '|' + ready;
+      if (ready && near && !off) anyUsable = true;
+      var key = name + '|' + tc + '|' + Math.round(cd) + '|' + off + '|' + ready + '|' + near;
       if (key === q.key) continue;
       q.key = key;
       q.nm.textContent = name;
@@ -310,7 +335,10 @@
       q.cd.style.height = cd + '%';
       q.box.classList.toggle('off', !b || off);
       q.box.classList.toggle('ready', ready && !off);
+      q.box.classList.toggle('inrange', near && !off);
+      q.box.classList.toggle('far', !!b && !near && !off);
     }
+    if (hubEl) hubEl.classList.toggle('any', anyUsable);
   }
 
   function updateBench() {
@@ -389,7 +417,7 @@
     S.scale = SCALES[(i + 1) % SCALES.length];
     lsSet('scale', S.scale);
     applyVars();
-    return 'Arena size ' + Math.round(S.scale * 100) + '%';
+    return S.scale === 'fill' ? 'Arena: full screen (crops a little top and bottom)' : 'Arena: ' + Math.round(S.scale * 100) + '% (whole arena)';
   };
   S.cycleOpacity = function () {
     var i = OPACITIES.indexOf(S.opacity);
@@ -398,6 +426,13 @@
     applyVars();
     return 'Controls opacity ' + Math.round(S.opacity * 100) + '%';
   };
+  S.cycleSize = function () {
+    var i = SIZES.indexOf(S.btn);
+    S.btn = SIZES[(i + 1) % SIZES.length];
+    lsSet('btn', S.btn);
+    applyVars();
+    return 'Button size ' + Math.round(S.btn * 100) + '%';
+  };
   S.toggleInput = function () {
     S.input = S.input === 'pad' ? 'tap' : 'pad';
     lsSet('input', S.input);
@@ -405,7 +440,7 @@
     return S.input === 'pad' ? 'Moves sent as controller buttons' : "Moves sent as taps on PB's buttons";
   };
   S.status = function () {
-    return JSON.stringify({ enabled: S.enabled, active: S.active, scale: S.scale, opacity: S.opacity, input: S.input });
+    return JSON.stringify({ enabled: S.enabled, active: S.active, scale: S.scale, opacity: S.opacity, input: S.input, btn: S.btn });
   };
 
   setInterval(tick, 120);

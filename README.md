@@ -23,8 +23,8 @@ assets are included.
 In a battle the arena fills the screen height and PB's own buttons are moved off screen (they keep working underneath):
 - **Left:** PB's analogue stick (touching it on Auto switches to Manual), bench strip top-left (tap to switch).
 - **Right:** radial move button (tap a quarter, or press and drag towards one, release to use it; quarters show the
-  move name, type colour and cooldown), Dodge above it, Auto/Manual and Mega pills top-right.
-- ⚙︎ menu: controls on/off, arena size, controls opacity, move input (controller buttons or taps).
+  move name, type colour and cooldown; a move in range glows with a green dot, out of range is dimmed and striped), Dodge above it, Auto/Manual and Mega pills top-right.
+- ⚙︎ menu: controls on/off, arena size (full screen / 100% / 92% / 84%), button size, controls opacity, move input (controller buttons or taps).
 
 ## Building
 
