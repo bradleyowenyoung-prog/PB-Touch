@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Apple-silicon runners were out of capacity on 2026-11-06; the Intel pool builds the same arm64 IPA.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v5
 
