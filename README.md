@@ -7,7 +7,7 @@ Unofficial fan project, not affiliated with the PB Ranked developers, Nintendo,
 Game Freak or The Pokémon Company. It loads the live website; no game code or
 assets are included.
 
-## Status — build 1 (diagnostics)
+## Status — build 2 (custom battle controls)
 
 - Landscape full screen: no status bar, home indicator auto-hides, edge swipes need a second swipe.
 - Login is kept between launches. **Use Discord sign-in** (Google blocks sign-in inside apps).
@@ -18,13 +18,13 @@ assets are included.
   - **Virtual controller test**: on-screen stick and buttons presented to the game as a standard gamepad,
     with a readout showing whether the game is polling it.
 
-## Planned (build 2)
+## Battle layout (build 2)
 
-Hide PB's own buttons, stretch the arena, then add:
-- analogue stick (movement)
-- radial move button: press, drag towards a move, release
-- Dodge, Auto/Manual, Mega
-- quick Pokémon switching
+In a battle the arena fills the screen height and PB's own buttons are moved off screen (they keep working underneath):
+- **Left:** PB's analogue stick (touching it on Auto switches to Manual), bench strip top-left (tap to switch).
+- **Right:** radial move button (tap a quarter, or press and drag towards one, release to use it; quarters show the
+  move name, type colour and cooldown), Dodge above it, Auto/Manual and Mega pills top-right.
+- ⚙︎ menu: controls on/off, arena size, controls opacity, move input (controller buttons or taps).
 
 ## Building
 

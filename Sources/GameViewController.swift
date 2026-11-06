@@ -32,12 +32,17 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.applicationNameForUserAgent = "Version/26.0 Mobile/15E148 Safari/604.1"
 
-        for name in ["probe", "vpad"] {
+        for name in ["probe", "vpad", "layout"] {
             if let source = Self.loadScript(name) {
                 config.userContentController.addUserScript(
                     WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
             }
         }
+
+        // Lock zoom so drags and taps never turn into pinch/double-tap zooms; page scrolling still works.
+        config.userContentController.addUserScript(WKUserScript(source: Self.viewportScript,
+                                                                injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        config.userContentController.add(HapticHandler(), name: "pbtHaptic")
 
         let wv = WKWebView(frame: view.bounds, configuration: config)
         wv.translatesAutoresizingMaskIntoConstraints = false
@@ -47,8 +52,8 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         wv.backgroundColor = .black
         wv.scrollView.backgroundColor = .black
         wv.scrollView.contentInsetAdjustmentBehavior = .never
-        wv.scrollView.isScrollEnabled = false
         wv.scrollView.bounces = false
+        wv.scrollView.pinchGestureRecognizer?.isEnabled = false
         wv.allowsBackForwardNavigationGestures = false
         if #available(iOS 16.4, *) { wv.isInspectable = true }
         view.addSubview(wv)
@@ -65,10 +70,21 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         let threeFingerTap = UITapGestureRecognizer(target: self, action: #selector(toggleDebugButton))
         threeFingerTap.numberOfTouchesRequired = 3
         threeFingerTap.cancelsTouchesInView = false
+        threeFingerTap.delaysTouchesBegan = false
+        threeFingerTap.delaysTouchesEnded = false   // build 1 held back every tap's end, breaking quick taps
         view.addGestureRecognizer(threeFingerTap)
 
         wv.load(URLRequest(url: Self.gameURL))
     }
+
+    private static let viewportScript = """
+    (function () {
+      var c = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+      var m = document.querySelector('meta[name="viewport"]');
+      if (m) { m.setAttribute('content', c); }
+      else { m = document.createElement('meta'); m.name = 'viewport'; m.content = c; (document.head || document.documentElement).appendChild(m); }
+    })();
+    """
 
     private static func loadScript(_ name: String) -> String? {
         guard let url = Bundle.main.url(forResource: name, withExtension: "js") else { return nil }
@@ -109,6 +125,18 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
 
     @objc private func showMenu() {
         let menu = UIAlertController(title: "PB Touch \(Self.appVersion)", message: nil, preferredStyle: .actionSheet)
+        menu.addAction(UIAlertAction(title: "Custom battle controls: on / off", style: .default) { [weak self] _ in
+            self?.runLayout("toggle")
+        })
+        menu.addAction(UIAlertAction(title: "Arena size: 100% → 92% → 84%", style: .default) { [weak self] _ in
+            self?.runLayout("cycleScale")
+        })
+        menu.addAction(UIAlertAction(title: "Controls opacity: 85% → 60% → 100%", style: .default) { [weak self] _ in
+            self?.runLayout("cycleOpacity")
+        })
+        menu.addAction(UIAlertAction(title: "Move input: controller / taps", style: .default) { [weak self] _ in
+            self?.runLayout("toggleInput")
+        })
         menu.addAction(UIAlertAction(title: "Export diagnostics now", style: .default) { [weak self] _ in
             self?.exportDiagnostics()
         })
@@ -132,6 +160,12 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
             pop.sourceRect = debugButton.bounds
         }
         presentOnTop(menu)
+    }
+
+    private func runLayout(_ fn: String) {
+        webView.evaluateJavaScript("window.__pbt && window.__pbt.layout ? window.__pbt.layout.\(fn)() : 'Controls not loaded yet'") { [weak self] result, _ in
+            if let text = result as? String { self?.toast(text) }
+        }
     }
 
     private func toggleVpad() {
@@ -278,6 +312,12 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        let host = navigationAction.request.url?.host?.lowercased() ?? ""
+        let inApp = host.isEmpty || Self.inAppHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+        if !inApp, let url = navigationAction.request.url {
+            UIApplication.shared.open(url)      // links to other sites open in Safari
+            return nil
+        }
         closePopup()
         let child = WKWebView(frame: view.bounds, configuration: configuration)
         child.uiDelegate = self
@@ -288,6 +328,16 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
         view.bringSubviewToFront(debugButton)
         popup = container
         return child
+    }
+
+    private static let inAppHosts = ["pokemonbattlegrounds.com", "discord.com", "discordapp.com",
+                                     "accounts.google.com", "google.com", "gstatic.com"]
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        guard let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() else { return .allow }
+        if ["http", "https", "about", "blob", "data", "javascript", "file"].contains(scheme) { return .allow }
+        _ = await UIApplication.shared.open(url)   // discord://, mailto: and the like
+        return .cancel
     }
 
     func webViewDidClose(_ webView: WKWebView) {
@@ -383,4 +433,22 @@ final class PopupContainer: UIView {
     required init?(coder: NSCoder) { fatalError("not used") }
 
     @objc private func closeTapped() { onClose() }
+}
+
+/// Haptic taps for the custom controls (window.webkit.messageHandlers.pbtHaptic).
+@MainActor
+final class HapticHandler: NSObject, WKScriptMessageHandler {
+    private let light = UIImpactFeedbackGenerator(style: .light)
+    private let medium = UIImpactFeedbackGenerator(style: .medium)
+    private let rigid = UIImpactFeedbackGenerator(style: .rigid)
+    private let selection = UISelectionFeedbackGenerator()
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        switch message.body as? String ?? "light" {
+        case "selection": selection.selectionChanged()
+        case "medium": medium.impactOccurred()
+        case "rigid": rigid.impactOccurred(intensity: 0.6)
+        default: light.impactOccurred()
+        }
+    }
 }

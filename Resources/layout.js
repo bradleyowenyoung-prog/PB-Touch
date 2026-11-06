@@ -1,0 +1,412 @@
+/* PB Touch — custom battle layout (injected at document start, after probe.js and vpad.js).
+ *
+ * In a battle (body[data-screen="battle"]):
+ *  - the arena canvas fills the screen height (size adjustable from the ⚙︎ menu)
+ *  - PB's own move / bench / dodge / manual / mega buttons are moved off screen (still working, still read)
+ *  - PB's own analogue pad (#pad) is kept, because it is analogue and takes real touches
+ *  - our controls: radial move button, Dodge, Auto/Manual, Mega, bench strip
+ *
+ * Moves, Auto/Manual and Mega are sent as virtual-controller buttons, using PB's own
+ * controller mapping (controls.js: move1-4 = 0-3, dodge 7, manual 8, mega 9).
+ * Dodge goes straight to PB's Dodge button (its pointerdown handler), bench taps click
+ * PB's bench buttons. "Move input: taps" in the ⚙︎ menu clicks PB's buttons instead. */
+(function () {
+  'use strict';
+  var P = window.__pbt;
+  if (!P || P.layout) return;
+
+  function lsGet(k, d) {
+    try { var v = localStorage.getItem('pbt.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
+  }
+  function lsSet(k, v) { try { localStorage.setItem('pbt.' + k, JSON.stringify(v)); } catch (e) {} }
+
+  var SCALES = [1, 0.92, 0.84];
+  var OPACITIES = [0.85, 0.6, 1];
+  var S = P.layout = {
+    enabled: lsGet('layout', true),
+    scale: lsGet('scale', 1),
+    opacity: lsGet('opacity', 0.85),
+    input: lsGet('input', 'pad'),
+    active: false,
+    ui: null
+  };
+
+  var PADBTN = { manual: 8, mega: 9, dodge: 7 };
+
+  function $(id) { return document.getElementById(id); }
+  function haptic(kind) { try { window.webkit.messageHandlers.pbtHaptic.postMessage(kind || 'light'); } catch (e) {} }
+  function el(tag, css, text) {
+    var e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (text) e.textContent = text;
+    return e;
+  }
+  function findTouch(e, id) {
+    for (var i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i].identifier === id) return e.changedTouches[i];
+    return null;
+  }
+  function listen(target, type, fn, opts) {
+    P.selfAdding = true;
+    target.addEventListener(type, fn, opts);
+    P.selfAdding = false;
+  }
+
+  // ---------- reading PB's (hidden) controls ----------
+  function moveButtons() {
+    var m = $('moves');
+    return m ? Array.prototype.slice.call(m.querySelectorAll('button.move'), 0, 4) : [];
+  }
+  function benchButtons() {
+    var b = $('bench');
+    return b ? Array.prototype.slice.call(b.querySelectorAll('button.mon')) : [];
+  }
+  function manualOn() { var b = $('manualBtn'); return !!(b && b.classList.contains('on')); }
+  function megaAvailable() { var m = $('megaBtn'); return !!(m && !m.hidden && !m.disabled); }
+  function pct(v) { var n = parseFloat(v); return isNaN(n) ? 0 : Math.max(0, Math.min(100, n)); }
+
+  // ---------- actions ----------
+  function pulse(i) {
+    var V = P.vpad;
+    if (!V) return false;
+    V.setEnabled(true);
+    V.setButton(i, true);
+    setTimeout(function () { V.setButton(i, false); }, 90);
+    return true;
+  }
+  function useMove(i) {
+    var b = moveButtons()[i];
+    if (!b || b.disabled) { haptic('rigid'); return; }
+    haptic('light');
+    if (S.input === 'pad' && pulse(i)) return;
+    b.click();
+  }
+  function dodge() {
+    var b = $('dodgeBtn');
+    if (!b) return;
+    haptic('medium');
+    try {
+      b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true }));
+    } catch (e) { pulse(PADBTN.dodge); }
+  }
+  function toggleManual(sync) {
+    var b = $('manualBtn');
+    if (!b) return;
+    haptic('light');
+    if (!sync && S.input === 'pad' && pulse(PADBTN.manual)) return;
+    b.click();
+  }
+  function mega() {
+    var m = $('megaBtn');
+    if (!megaAvailable()) return;
+    haptic('medium');
+    if (S.input === 'pad' && pulse(PADBTN.mega)) return;
+    m.click();
+  }
+  function switchTo(i) {
+    var b = benchButtons()[i];
+    if (!b || b.disabled) { haptic('rigid'); return; }
+    haptic('light');
+    b.click();
+  }
+
+  // ---------- styles ----------
+  var CSS = [
+    'html.pbt-battle .stagebar, html.pbt-battle #rotateHint, html.pbt-battle #note { display: none !important; }',
+    'html.pbt-battle, html.pbt-battle body { overflow: hidden !important; overscroll-behavior: none !important; }',
+    'html.pbt-battle #stage { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;',
+    '  max-width: none !important; max-height: none !important; margin: 0 !important; padding: 0 !important;',
+    '  border-radius: 0 !important; z-index: 1 !important; transform: none !important; }',
+    'html.pbt-battle #stage > canvas#c { position: absolute !important; left: 50% !important;',
+    '  top: calc((100vh - 100vh * var(--pbt-scale, 1)) / 2) !important;',
+    '  height: calc(100vh * var(--pbt-scale, 1)) !important; width: calc(100vh * var(--pbt-scale, 1) * 16 / 9) !important;',
+    '  max-width: none !important; max-height: none !important; margin: 0 !important; transform: translateX(-50%) !important; }',
+    'html.pbt-battle #controls { position: fixed !important; left: -10000px !important; top: 0 !important;',
+    '  opacity: 0 !important; pointer-events: none !important; }',
+    'html.pbt-battle #pad { display: block !important; visibility: visible !important; position: fixed !important;',
+    '  left: calc(env(safe-area-inset-left, 0px) + 4px) !important; bottom: calc(env(safe-area-inset-bottom, 0px) + 2px) !important;',
+    '  top: auto !important; right: auto !important; width: 136px !important; height: 136px !important; margin: 0 !important;',
+    '  opacity: var(--pbt-op, .85) !important; z-index: 2147483000 !important; pointer-events: auto !important; touch-action: none !important; }',
+    '#__pbt_ui { position: fixed; inset: 0; z-index: 2147483001; pointer-events: none; display: none;',
+    '  font: 700 12px -apple-system, system-ui, sans-serif; color: #fff; -webkit-user-select: none; user-select: none;',
+    '  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }',
+    '#__pbt_ui .pbt-hit { pointer-events: auto; touch-action: none; }',
+    '#__pbt_ui .pbt-q { position: absolute; width: calc(50% - 2px); height: calc(50% - 2px); overflow: hidden;',
+    '  background: rgba(40,40,48,.8); transition: box-shadow .05s, filter .05s; }',
+    '#__pbt_ui .pbt-q .cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); }',
+    '#__pbt_ui .pbt-q .nm { position: absolute; width: 54px; font-size: 9px; line-height: 10px; text-shadow: 0 1px 2px #000;',
+    '  white-space: normal; word-break: break-word; }',
+    '#__pbt_ui .pbt-q.ready { box-shadow: inset 0 0 0 2px rgba(255,255,255,.55); }',
+    '#__pbt_ui .pbt-q.off { filter: grayscale(1) brightness(.6); }',
+    '#__pbt_ui .pbt-q.sel { box-shadow: inset 0 0 0 3px #fff; filter: brightness(1.35); }',
+    '#__pbt_ui .pbt-pill { position: absolute; height: 30px; padding: 0 12px; border-radius: 15px; display: flex;',
+    '  align-items: center; justify-content: center; letter-spacing: .5px; background: rgba(30,30,36,.8);',
+    '  border: 2px solid rgba(255,255,255,.35); }',
+    '#__pbt_ui .pbt-mon { position: relative; width: 42px; height: 42px; margin: 0 0 4px; border-radius: 9px;',
+    '  background: rgba(30,30,36,.8); border: 2px solid rgba(255,255,255,.25); overflow: hidden; }',
+    '#__pbt_ui .pbt-mon img { position: absolute; left: 3px; top: 1px; width: 32px; height: 32px; image-rendering: pixelated; }',
+    '#__pbt_ui .pbt-mon .hp { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 4px; background: rgba(0,0,0,.6); border-radius: 2px; }',
+    '#__pbt_ui .pbt-mon .hp i { display: block; height: 100%; border-radius: 2px; }',
+    '#__pbt_ui .pbt-mon.out { border-color: #ffd33d; }',
+    '#__pbt_ui .pbt-mon.off { filter: grayscale(1) brightness(.5); }',
+    '#__pbt_ui .pbt-bench.choose .pbt-mon:not(.off):not(.out) { border-color: #6cf; box-shadow: 0 0 10px #6cf; }'
+  ].join('\n');
+
+  function applyVars() {
+    var r = document.documentElement;
+    r.style.setProperty('--pbt-scale', String(S.scale));
+    r.style.setProperty('--pbt-op', String(S.opacity));
+    if (S.ui) S.ui.style.opacity = String(S.opacity);
+  }
+
+  // ---------- UI ----------
+  var Q = [];          // radial quadrants
+  var benchEl = null, benchKey = '';
+  var dodgeFill = null, manualPill = null, megaPill = null;
+  var L = 'calc(env(safe-area-inset-left, 0px) + ';
+  var R = 'calc(env(safe-area-inset-right, 0px) + ';
+  var B = 'calc(env(safe-area-inset-bottom, 0px) + ';
+
+  function buildRadial(root) {
+    var wrap = el('div', 'position:absolute;right:' + R + '12px);bottom:' + B + '8px);width:128px;height:128px;' +
+      'border-radius:50%;transform-origin:50% 50%;transition:transform .08s;');
+    wrap.className = 'pbt-hit';
+    var place = [
+      ['left:0;top:0;border-top-left-radius:100%', 'right:5px;bottom:6px;text-align:right'],
+      ['right:0;top:0;border-top-right-radius:100%', 'left:5px;bottom:6px;text-align:left'],
+      ['left:0;bottom:0;border-bottom-left-radius:100%', 'right:5px;top:6px;text-align:right'],
+      ['right:0;bottom:0;border-bottom-right-radius:100%', 'left:5px;top:6px;text-align:left']
+    ];
+    for (var i = 0; i < 4; i++) {
+      var q = el('div', place[i][0]);
+      q.className = 'pbt-q';
+      var cd = el('div', 'height:0');
+      cd.className = 'cd';
+      var nm = el('div', place[i][1]);
+      nm.className = 'nm';
+      q.appendChild(cd);
+      q.appendChild(nm);
+      wrap.appendChild(q);
+      Q.push({ box: q, cd: cd, nm: nm, key: '' });
+    }
+    var hub = el('div', 'position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;' +
+      'background:rgba(20,20,24,.9);border:2px solid rgba(255,255,255,.4);');
+    wrap.appendChild(hub);
+    root.appendChild(wrap);
+
+    var tid = null, cx = 0, cy = 0, sel = -1;
+    function pick(t) {
+      var dx = t.clientX - cx, dy = t.clientY - cy;
+      if (Math.hypot(dx, dy) < 12) return -1;
+      return (dy < 0 ? 0 : 2) + (dx < 0 ? 0 : 1);
+    }
+    function setSel(s) {
+      sel = s;
+      Q.forEach(function (q, j) { q.box.classList.toggle('sel', j === s); });
+    }
+    listen(wrap, 'touchstart', function (e) {
+      e.preventDefault();
+      if (tid !== null) return;
+      var t = e.changedTouches[0];
+      tid = t.identifier;
+      var r = wrap.getBoundingClientRect();
+      cx = r.left + r.width / 2;
+      cy = r.top + r.height / 2;
+      wrap.style.transform = 'scale(1.45)';
+      wrap.style.zIndex = '5';
+      setSel(pick(t));
+      haptic('selection');
+    }, { passive: false });
+    listen(wrap, 'touchmove', function (e) {
+      e.preventDefault();
+      var t = findTouch(e, tid);
+      if (!t) return;
+      var s = pick(t);
+      if (s !== sel) { setSel(s); if (s >= 0) haptic('selection'); }
+    }, { passive: false });
+    function end(e, fire) {
+      var t = findTouch(e, tid);
+      if (!t) return;
+      tid = null;
+      wrap.style.transform = '';
+      wrap.style.zIndex = '';
+      var s = sel;
+      setSel(-1);
+      if (fire && s >= 0) useMove(s);
+    }
+    listen(wrap, 'touchend', function (e) { e.preventDefault(); end(e, true); }, { passive: false });
+    listen(wrap, 'touchcancel', function (e) { end(e, false); });
+  }
+
+  function tapButton(root, css, label, fn, cls) {
+    var b = el('div', css, label);
+    b.className = 'pbt-hit ' + (cls || '');
+    listen(b, 'touchstart', function (e) { e.preventDefault(); b.style.filter = 'brightness(1.6)'; fn(); }, { passive: false });
+    function up(e) { e.preventDefault(); b.style.filter = ''; }
+    listen(b, 'touchend', up, { passive: false });
+    listen(b, 'touchcancel', up, { passive: false });
+    root.appendChild(b);
+    return b;
+  }
+
+  function build() {
+    if (S.ui || !document.body) return;
+    P.selfAdding = true;
+    var style = el('style');
+    style.id = '__pbt_style';
+    style.textContent = CSS;
+    (document.head || document.documentElement).appendChild(style);
+
+    var root = el('div');
+    root.id = '__pbt_ui';
+
+    buildRadial(root);
+
+    var d = tapButton(root, 'position:absolute;right:' + R + '6px);bottom:' + B + '148px);width:70px;height:70px;border-radius:50%;' +
+      'background:rgba(50,40,30,.85);border:2px solid rgba(255,255,255,.45);overflow:hidden;display:flex;align-items:center;' +
+      'justify-content:center;font-size:13px;letter-spacing:.5px;', '', dodge);
+    dodgeFill = el('div', 'position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.55);');
+    d.appendChild(dodgeFill);
+    d.appendChild(el('span', 'position:relative;', 'DODGE'));
+
+    manualPill = tapButton(root, 'top:8px;right:' + R + '6px);min-width:74px;', 'AUTO', function () { toggleManual(false); }, 'pbt-pill');
+    megaPill = tapButton(root, 'top:46px;right:' + R + '6px);min-width:74px;display:none;' +
+      'background:linear-gradient(90deg,#b44cff,#ff5a5a,#ffd33d);color:#111;', 'MEGA', mega, 'pbt-pill');
+
+    benchEl = el('div', 'position:absolute;left:' + L + '6px);top:6px;display:flex;flex-direction:column;flex-wrap:wrap;' +
+      'max-height:calc(100vh - 160px);column-gap:4px;');
+    benchEl.className = 'pbt-bench';
+    root.appendChild(benchEl);
+
+    document.body.appendChild(root);
+    S.ui = root;
+
+    // Touching PB's stick while on Auto switches to Manual first, so the stick works straight away.
+    document.addEventListener('pointerdown', function (e) {
+      if (S.active && e.target && e.target.closest && e.target.closest('#pad') && !manualOn()) toggleManual(true);
+    }, true);
+    P.selfAdding = false;
+    applyVars();
+  }
+
+  function updateRadial() {
+    var btns = moveButtons();
+    for (var i = 0; i < 4; i++) {
+      var q = Q[i], b = btns[i];
+      var name = '', tc = '', cd = 0, off = true, ready = false;
+      if (b) {
+        var nm = b.querySelector('.nm');
+        name = (nm ? nm.textContent : b.getAttribute('aria-label') || '').trim();
+        tc = b.style.getPropertyValue('--tc').trim();
+        var cdi = b.querySelector('i.cd');
+        cd = cdi ? pct(cdi.style.width) : 0;
+        off = b.disabled;
+        ready = b.classList.contains('ready');
+      }
+      var key = name + '|' + tc + '|' + Math.round(cd) + '|' + off + '|' + ready;
+      if (key === q.key) continue;
+      q.key = key;
+      q.nm.textContent = name;
+      q.box.style.background = tc ? tc : 'rgba(40,40,48,.8)';
+      q.cd.style.height = cd + '%';
+      q.box.classList.toggle('off', !b || off);
+      q.box.classList.toggle('ready', ready && !off);
+    }
+  }
+
+  function updateBench() {
+    var mons = benchButtons();
+    var key = mons.map(function (m) {
+      var img = m.querySelector('img'), hp = m.querySelector('.hp i');
+      return (img ? img.src : '') + '|' + (hp ? hp.style.width + hp.style.background : '') + '|' + m.disabled + '|' + m.classList.contains('out');
+    }).join(';');
+    var ch = $('choose');
+    benchEl.classList.toggle('choose', !!(ch && !ch.hidden));
+    if (key === benchKey) return;
+    benchKey = key;
+    P.selfAdding = true;
+    benchEl.textContent = '';
+    mons.forEach(function (m, i) {
+      var tile = el('div');
+      tile.className = 'pbt-mon pbt-hit' + (m.classList.contains('out') ? ' out' : '') + (m.disabled && !m.classList.contains('out') ? ' off' : '');
+      var img = m.querySelector('img');
+      if (img) { var im = el('img'); im.src = img.src; im.alt = ''; tile.appendChild(im); }
+      var hp = m.querySelector('.hp i'), bar = el('div'), fill = el('i');
+      bar.className = 'hp';
+      if (hp) { fill.style.width = hp.style.width; fill.style.background = hp.style.background || '#5f5'; }
+      bar.appendChild(fill);
+      tile.appendChild(bar);
+      tile.addEventListener('touchstart', function (e) { e.preventDefault(); switchTo(i); }, { passive: false });
+      benchEl.appendChild(tile);
+    });
+    P.selfAdding = false;
+  }
+
+  function update() {
+    updateRadial();
+    updateBench();
+    var db = $('dodgeBtn');
+    if (db && dodgeFill) dodgeFill.style.height = pct(db.style.getPropertyValue('--cd')) + '%';
+    var on = manualOn();
+    manualPill.textContent = on ? 'MANUAL' : 'AUTO';
+    manualPill.style.background = on ? 'rgba(255,211,61,.9)' : 'rgba(30,30,36,.8)';
+    manualPill.style.color = on ? '#111' : '#fff';
+    megaPill.style.display = megaAvailable() ? 'flex' : 'none';
+  }
+
+  function inBattle() {
+    if (!S.enabled || !document.body || document.body.dataset.screen !== 'battle') return false;
+    var rb = $('replayBar');
+    return !(rb && !rb.hidden); // leave replays alone
+  }
+
+  function testUIVisible() {
+    var V = P.vpad;
+    return !!(V && V.ui && V.ui.style.display !== 'none');
+  }
+
+  function tick() {
+    if (!document.body) return;
+    if (!S.ui) build();
+    var battle = inBattle();
+    if (battle !== S.active) {
+      S.active = battle;
+      document.documentElement.classList.toggle('pbt-battle', battle);
+      if (S.ui) S.ui.style.display = battle ? 'block' : 'none';
+      if (P.vpad && !testUIVisible()) P.vpad.setEnabled(battle && S.input === 'pad');
+    }
+    if (battle) update();
+  }
+
+  // ---------- API for the ⚙︎ menu ----------
+  S.toggle = function () {
+    S.enabled = !S.enabled;
+    lsSet('layout', S.enabled);
+    tick();
+    return S.enabled ? 'Custom controls ON' : "Custom controls OFF (PB's own buttons)";
+  };
+  S.cycleScale = function () {
+    var i = SCALES.indexOf(S.scale);
+    S.scale = SCALES[(i + 1) % SCALES.length];
+    lsSet('scale', S.scale);
+    applyVars();
+    return 'Arena size ' + Math.round(S.scale * 100) + '%';
+  };
+  S.cycleOpacity = function () {
+    var i = OPACITIES.indexOf(S.opacity);
+    S.opacity = OPACITIES[(i + 1) % OPACITIES.length];
+    lsSet('opacity', S.opacity);
+    applyVars();
+    return 'Controls opacity ' + Math.round(S.opacity * 100) + '%';
+  };
+  S.toggleInput = function () {
+    S.input = S.input === 'pad' ? 'tap' : 'pad';
+    lsSet('input', S.input);
+    if (S.active && P.vpad && !testUIVisible()) P.vpad.setEnabled(S.input === 'pad');
+    return S.input === 'pad' ? 'Moves sent as controller buttons' : "Moves sent as taps on PB's buttons";
+  };
+  S.status = function () {
+    return JSON.stringify({ enabled: S.enabled, active: S.active, scale: S.scale, opacity: S.opacity, input: S.input });
+  };
+
+  setInterval(tick, 120);
+})();
